@@ -1,69 +1,58 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-import "./FungusFeeding.sol";
+import "./FungusFactory.sol";
 
-contract FungusOwnership is FungusFeeding {
+interface FeedFactoryInterface {
+    function getFeed(uint _id) external view returns (
+        string memory name,
+        uint dna,
+        uint price
+    );
+}
 
-    constructor(address initialOwner) FungusFeeding(initialOwner) {}
+contract FungusFeeding is FungusFactory {
 
-    // 각 토큰에 대해 대리 전송 승인받은 주소를 mapping
-    mapping (uint => address) private operatorApproval;
+    constructor() FungusFactory() {}
+    
+    FeedFactoryInterface feedContract;
 
-    // 토큰 전송 시 발생하는 event
-    event Transfer(address indexed from, address indexed to, uint256 tokenId);
-    // 토큰 전송 승인 시 발생하는 event
-    event Approval(address indexed owner, address indexed approved, uint256 tokenId);
-
-    function balanceOf(address owner) public view returns (uint balance) {
-        return ownerFungusCount[owner];
+    modifier onlyOwnerOf(uint fungusId) {
+        require(msg.sender == fungusToOwner[fungusId]);
+        _;
+    }
+    
+    function setFeedFactoryContractAddress(address address_) external onlyOwner {
+        feedContract = FeedFactoryInterface(address_);
     }
 
-    function ownerOf(uint tokenId) public view returns (address owner) {
-        return fungusToOwner[tokenId];
+    function _triggerCooldown(Fungus memory fungus) internal view {
+        fungus.readyTime = uint32(block.timestamp + cooldownTime);
     }
 
-    function transferFrom(address from, address to, uint tokenId) public {
-        // 토큰의 소유자 또는 운영자만 호출할 수 있음
-        require(_msgSender() == operatorApproval[tokenId] || _msgSender() == ownerOf(tokenId), "transferFrom caller is not owner nor approved operator");
-        _transfer(from, to, tokenId);
+    function _isReady(Fungus memory fungus) internal view returns (bool) {
+        return (fungus.readyTime <= block.timestamp);
     }
 
-    // 토큰 소유자 대신 transfer를 호출할 수 있는 (토큰 전송 승인받은) 운영자 지정
-    function approveToken(address to, uint256 tokenId) public {
-        address owner = ownerOf(tokenId);
+    function feedAndMultiply(uint fungusId, uint targetDna, string memory species) internal onlyOwnerOf(fungusId) {
+        Fungus memory myFungus = fungi[fungusId];
+        require(_isReady(myFungus), "not ready");
+        targetDna = targetDna % dnaModulus;
+        uint newDna = (myFungus.dna + targetDna) / 2;
 
-        require(to != owner, "approval to current owner");
-        // 토큰의 소유자 또는 운영자만 호출할 수 있음
-        require(
-            _msgSender() == owner || _msgSender() == operatorApproval[tokenId],
-            "approve caller is not owner nor approved operator"
-        );
+        if (keccak256(bytes(species)) == keccak256("feed")) {
+            newDna = newDna - newDna % 100 + 1;
+        }
 
-        _approveToken(to, tokenId);
+        _createFungus("Noname", newDna);
+        _triggerCooldown(myFungus);
     }
 
-    // 토큰 전송
-    function _transfer(address from, address to, uint tokenId) private {
-        // 반드시 보내는 주소는 해당 토큰의 소유자여야 함
-        require(ownerOf(tokenId) == from, "transfer from incorrect owner");
-        // 받는 주소는 zero address가 아니어야 함, 즉 수신자가 있어야 함
-        require(to != address(0), "transfer to the zero address");
-        
-        // 전송한 토큰의 소유자가 변경되었기 때문에 approve를 초기화
-        _approveToken(address(0), tokenId);
-        
-        // 토큰의 보유량과 소유권 변경
-        ownerFungusCount[from]--;
-        ownerFungusCount[to]++;
-        fungusToOwner[tokenId] = to;
-
-        // Transfer 이벤트 발생
-        emit Transfer(from, to, tokenId);
-    }
-
-    function _approveToken(address to, uint tokenId) private {
-        operatorApproval[tokenId] = to;
-        emit Approval(ownerOf(tokenId), to, tokenId);
+    function feed(uint fungusId, uint feedId) public payable {
+        uint feedDna;
+        uint feedPrice;
+        (,feedDna,feedPrice) = feedContract.getFeed(feedId);
+        require(msg.value == feedPrice, "be paid inappropriate expenses");
+        feedAndMultiply(fungusId, feedDna, "feed");
     }
 }

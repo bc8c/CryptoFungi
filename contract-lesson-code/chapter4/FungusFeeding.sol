@@ -13,7 +13,7 @@ interface FeedFactoryInterface {
 
 contract FungusFeeding is FungusFactory {
 
-    constructor(address initialOwner) FungusFactory(initialOwner) {}
+    constructor() FungusFactory() {}
     
     FeedFactoryInterface feedContract;
 

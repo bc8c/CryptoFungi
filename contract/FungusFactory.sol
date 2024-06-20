@@ -5,7 +5,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract FungusFactory is Ownable {
 
-    constructor(address initialOwner) Ownable(initialOwner) {}
+    constructor() Ownable(msg.sender) {}
+
     event NewFungus(uint fungusId, string name, uint dna);
 
     // RED: 3, GREEN: 3, BLUE: 3, ALPHA: 3, Species: 2

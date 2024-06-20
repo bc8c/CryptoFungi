@@ -5,7 +5,7 @@ import "./FungusFeeding.sol";
 
 contract FungusOwnership is FungusFeeding {
 
-    constructor(address initialOwner) FungusFeeding(initialOwner) {}
+    constructor() FungusFeeding() {}
 
     // 각 토큰에 대해 대리 전송 승인받은 주소를 mapping
     mapping (uint => address) private operatorApproval;

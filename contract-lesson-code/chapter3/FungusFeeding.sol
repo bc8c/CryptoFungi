@@ -2,7 +2,6 @@
 pragma solidity ^0.8.12;
 
 import "./FungusFactory.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
 
 interface FeedFactoryInterface {
     function getFeed(uint _id) external view returns (
@@ -14,7 +13,7 @@ interface FeedFactoryInterface {
 
 contract FungusFeeding is FungusFactory {
 
-    constructor(address initialOwner) FungusFactory(initialOwner) {}
+    constructor() FungusFactory() {}
     
     FeedFactoryInterface feedContract;
 
